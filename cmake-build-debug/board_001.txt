@@ -1,0 +1,17 @@
+BOARD SIZE : 8 x 8
+
+BOARD : 
+
+a b c d e f g h 
+A H . . . . . . . 
+B E . . . . . . . 
+C L . . . . . . . 
+D L . . . . . . . 
+E O . . . . . . . 
+F . . . . . . . . 
+G . . . . . . . . 
+H . . . . . . . . 
+
+WORDS : 
+
+AaV HELLO

@@ -1,0 +1,27 @@
+BOARD SIZE : 11 x 11
+
+BOARD : 
+
+a b c d e f g h i j k 
+A . . . . C . . E . . . 
+B . A L G O R I T H M S 
+C . . . . M . . H . A . 
+D . . . . P . . I . X . 
+E . . . M U S I C . I . 
+F . . . . T . . . . M . 
+G . . . . E . . . . U . 
+H . . . P R O G R A M . 
+I . . . . . . N . . . . 
+J O D Y S S E U S . . . 
+K . . . . . . . . . . . 
+
+WORDS : 
+
+AeV COMPUTER
+AhV ETHIC
+BbH ALGORITHMS
+EdH MUSIC
+BjV MAXIMUM
+HdH PROGRAM
+HgV GNU
+JaH ODYSSEUS
