@@ -109,7 +109,7 @@ public:
     int whoFinished(WordOnBoard word);
 
     vector<vector<Letters>> getLetters();
-    // string getLetters(); // usar para criar o board!!
+
 private:
     vector<vector<Letters>> gameBoard;
     int numLins_;
@@ -132,7 +132,6 @@ Board::Board(const string &filename) { // constructor2 definition
         exit(1);
     }
     string dummy, boardSize, lines, pos, word;
-    //getline(f,dummy);getline(f,dummy); // tf o que faz esta linha aqui
     getline(f, boardSize);
     istringstream iss(boardSize);
     iss >> dummy >> dummy >> dummy >> numLins_ >> dummy >> numCols_;
@@ -162,11 +161,6 @@ Board::Board(const string &filename) { // constructor2 definition
         position.lin = pos[0];
         position.col = pos[1];
         position.dir = pos[2];
-        //if (position.dir == 'H') {
-        //    for (int i = 0; i < word.size(); i++) {
-        //        //wordsOnBoard.push_back()
-        //    }
-        //}
         wordsOnBoard.push_back({position, word});
     }
 }
@@ -253,10 +247,9 @@ bool Board::insert(char line, char column, char letter, int nplayer) {
     int lin = (int) line - 'A';
     int col = (int) column - 'a';
     bool canPlay = canPlayAt(line, column, letter);
-    if (!canPlay) {
-        cout << RED << "Letter can't be placed there ! \n" << NO_COLOR;
-    } else
-        gameBoard.at(lin).at(col).playerId = nplayer;
+
+    if (!canPlay) cout << RED << "Letter can't be placed there ! \n" << NO_COLOR;
+    else gameBoard.at(lin).at(col).playerId = nplayer;
 
     return canPlay; // returns true if it has successfully inserted a letter on the board
 }
@@ -338,7 +331,7 @@ Bag::Bag() { // default constructor
     lets = vector<char>();
 }
 
-Bag::Bag(Board &gameBoard) { // le todo o board e guarda as letras que nao são pontos
+Bag::Bag(Board &gameBoard) { // reads the whole board and saves all positions different from '.'
     this->gameBoard_ = gameBoard;
     for (int i = 0; i < gameBoard_.getlines(); i++) {
         for (int j = 0; j < gameBoard_.getcolumns(); j++) {
@@ -431,14 +424,14 @@ Hand::Hand(int &numLets) { // constructor1 definition
 }
 
 void Hand::remove(char letter) { // when a letter is inserted on the board, it has to be removed from the hand
-    if (hand_.count(letter) > 0) //verifica se encontrou a letra
+    bool isIt = isOnHand(letter);
+    if (isIt) // check if it has found the letter
     {
         auto it = hand_.find(letter);
         hand_.erase(it);
         char removedLetter = *it;
-    } else
-        cout << "That letter doesn't exist in the hand";
-};
+    }
+}
 
 void Hand::show() const {
     auto it = hand_.begin(); // iterator that points to the 1st position of the multiset
@@ -460,7 +453,8 @@ bool Hand::isEmpty() {
         return (0); // vector of letters on hand is yet not empty
 }
 
-bool Hand::isOnHand(char letter) { // ver se cria conflito com a funçao Hand__remove();
+bool Hand::isOnHand(char letter) {
+    hand_.count(letter) > 0;
     auto it = hand_.find(letter);
     if (it != hand_.end()) { // letter was found in the hand_ multiset
         return 1;
@@ -474,7 +468,7 @@ void Hand::insert(char letter) {
     hand_.insert(letter);
 }
 
-multiset<char> Hand::getLetters() const { // é necessário?
+multiset<char> Hand::getLetters() const {
     return hand_;
 }
 
@@ -507,6 +501,9 @@ public:
 
     string removeHand(const string &letters);
 
+    void quitPlayer();
+
+
 private:
     static int playerCount;  //mantém track da contagem dos players, como é static  is shared among all instances of the class, and its value persists across different objects.
     int playerId_;        //  number assigned to each player
@@ -515,12 +512,12 @@ private:
     Hand hand_; // each player has a hand with letters
 };
 
-int Player::playerCount = 0; // static member variables of a class must be defined outside of the class.This is because the static member variable exists independently of any specific instance of the class, and its memory must be allocated separately. (basicamente para tds os players a variavel player count vai ser a mm)
+int Player::playerCount = 0; // static member variables of a class must be defined outside the class.This is because the static member variable exists independently of any specific instance of the class, and its memory must be allocated separately. (basicamente para tds os players a variavel player count vai ser a mm)
 
 Player::Player(const string &name, int &numLets) {
-    //a cada player vou atribuir um nome e um numero (para o caso de haver nomes iguais)
+    // will attribute to each player (instance) a name, an id, a hand)
     this->name_ = name;
-    playerCount++; // cada vez que o construtor é chamado esta variável incrementa
+    playerCount++; // each time the constructor is called, this variable increments (it's static)
     this->playerId_ = playerCount;
     this->hand_ = Hand(numLets);
     this->points_ = 0;
@@ -561,53 +558,77 @@ void bubbleSortPoints(vector<Player> &v) {
     }
 }
 
-int main() { // por uma cor bonita nas mensagens
+
+void Player::quitPlayer() {
+    name_ = "\0";
+    playerId_ = -1;
+    hand_.getLetters().clear();
+}
+
+int main() {
     int numPlayers, numLetters, p = 1, i = 0;
     string filename, name;
     vector<string> names;
 
-    cout << LIGHTMAGENTA << "WORDS GAME\n\n" << NO_COLOR;
-
-    cout << "How many players ? ";
-    cin >> numPlayers;
+    cout << LIGHTMAGENTA << "~ ~ ~ WORDS GAME ~ ~ ~\n\n" << NO_COLOR;
 
     bool validNumberP = 0;
     while (!validNumberP) {
-        if (numPlayers >= 2 && numPlayers <= 4) {
+        cout << LIGHTCYAN << "How many players ? " << NO_COLOR;
+        cin >> numPlayers;
+        if (cin.fail()) {
+            cin.clear();
+            cout << RED << "The input failed.\n" << NO_COLOR;
+        } else if (numPlayers >= 2 && numPlayers <= 4) {
             validNumberP = 1;
         } else {
             cout << RED << "Invalid number of players. Please enter a number between 2 and 4." << NO_COLOR << endl;
-            cout << "How many players ? ";
-            cin >> numPlayers;
         }
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
     }
+
     while (p <= numPlayers) {
-        cout << "Name of Player " << p << " ? ";
+        cout << LIGHTCYAN << "Name of Player " << p << " ? " << NO_COLOR;
         cin >> name;
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
         names.push_back(name);
         p++;
     }
 
-    cout << "\nBoard filename ? ";
+    // FALTA VERIFICAR AQUI INPUTS INVALIDOS
+    cout << LIGHTCYAN << "\nBoard filename ? " << NO_COLOR;
     cin >> filename;
-    // if clause
+
+    bool validInput = 0;
+    while (!validInput) {
+        if (cin.fail()) {
+            cout << LIGHTCYAN << "\nInvalid input. Please enter a valid filename: " << NO_COLOR;
+            cin.clear();  // clear the error state
+        } else {
+            validInput = true;
+        }
+        cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');  // ignore invalid input
+    }
 
     Board board(filename);
     board.show();
     Bag bag(board);
     vector<Player> players;
 
-    cout << "How many letters do you want to play with ? ";
-    cin >> numLetters;
+
     bool validLetters = 0;
     while (!validLetters) {
-        if (numLetters < bag.get().size() / numPlayers) {
+        cout << LIGHTCYAN << "How many letters do you want to play with ? " << NO_COLOR;
+        cin >> numLetters;
+        if (cin.fail()) {
+            cin.clear();
+            cout << RED << "The input failed. \n" << NO_COLOR;
+        } else if (numLetters < bag.get().size() / numPlayers) {
             validLetters = 1;
         } else {
             cout << RED << "There are not enough letters to be distributed by all players ! \n" << NO_COLOR;
-            cout << "How many letters for each player ? ";
-            cin >> numLetters;
         }
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
     }
 
     for (int j = 0; j < numPlayers; j++) {
@@ -616,32 +637,47 @@ int main() { // por uma cor bonita nas mensagens
         for (int i = 0; i < numLetters; i++) {
             char remlet;
             remlet = bag.remove();
-            players.at(j).getHand().insert(remlet); // nao esta a funcionar
+            players.at(j).getHand().insert(remlet);
         }
-        cout << "Player " << j + 1 << ": ";
+        cout << LIGHTCYAN << "Player " << j + 1 << ": " << NO_COLOR;
         players.at(j).getHand().show();
         cout << endl;
     }
     int letPerRound;
     bool validLetPerRound = 0;
-    cout << "Do you want to play 1 or 2 letters per round?" << endl;
-    cin >> letPerRound;
     while (!validLetPerRound) {
-        if (letPerRound < 1 || letPerRound > 2) {
+        cout << LIGHTCYAN << "Do you want to play 1 or 2 letters per round?" << NO_COLOR;
+        cin >> letPerRound;
+        if (cin.fail()) {
+            cin.clear();
+            cout << RED << "The input failed.\n" << NO_COLOR;
+        } else if (letPerRound < 1 || letPerRound > 2) {
             cout << RED << "You can only play 1 or 2 ! \n" << NO_COLOR;
-            cout << "How many letters per round ? ";
+            cout << LIGHTCYAN << "How many letters per round ? " << NO_COLOR;
             cin >> letPerRound;
         } else {
             validLetPerRound = 1;
         }
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
     }
+
     int ema = 0;
     while (board.stillOnPlay()) { // when there are still letters to be played
         for (int j = 0; j < numPlayers; j++) { // indexing players
-            cout << endl << players.at(j).getName() << ", it's your turn ! \n";
-            cout << "Hand : ";
-            players.at(j).getHand().show();
-            cout << endl;
+            if (players.at(j).getId() == -1) continue; // whenever a player has quit the game
+            else if (players.at(j).getHand().isEmpty()) continue; // whenever a player no longer has letters on hand
+
+            cout << endl << players.at(j).getName() << ", it's your turn ! \n\n";
+
+            // Check if the player's hand is empty and only show it when it's not
+            if (!players.at(j).getHand().isEmpty()) {
+                cout << LIGHTCYAN << "Hand : " << NO_COLOR;
+                players.at(j).getHand().show();
+                cout << endl;
+            } else {
+                cout << "Player has no more letters in the hand!";
+            }
+
             ema = 0;
 
             // cycle that checks if any letter on hand can be played or not. if not, letters can be exchanged
@@ -658,84 +694,115 @@ int main() { // por uma cor bonita nas mensagens
                     }
                 }
             }
+
             // if canPlay = 1, there's at least one letter that can be played, so the player won't be able to exchange any letter
             if (!canPlay && bag.size() > 0) { // exchange of letters (when there are still letters on the bag!)
                 int excLetters;
-                cout << "You can't play any letters !\nWould you like to exchange 1 or 2 letters ? ";
-                cin >> excLetters;
+                cout << RED << "You can't play any letters !\n" << NO_COLOR;
                 bool validExcLet = 0;
                 while (!validExcLet) {
-                    if (excLetters < 1 || excLetters > 2) {
-                        cout << "You can only exchange 1 or 2 letters ! " << endl;
-                        cout << "How many letters to exchange ? ";
-                        cin >> excLetters;
+                    cout << LIGHTCYAN << "Would you like to exchange 1 or 2 letters ? " << NO_COLOR;
+                    cin >> excLetters;
+                    if (cin.fail()) {
+                        cin.clear();
+                        cout << RED << "The input failed.\n" << NO_COLOR;
+                    } else if (excLetters < 1 || excLetters > 2) {
+                        cout << RED << "You can only exchange 1 or 2 letters ! " << NO_COLOR << endl;
                     } else {
                         validExcLet = 1;
                     }
-                } // will only leave this loop when the number of letters is within the limits
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                } // will only leave this loop when the number of letters is within the limits or a valid input
+
                 for (int exc = 0; exc < excLetters; exc++) {
                     // removing a letter from hand chosen by the player
-                    cout << "Letter to remove ? ";
                     char letter;
-                    cin >> letter;
-
-                    players.at(j).getHand().remove(letter); // removing letter from hand
-                    bag.insert(letter); // inserting that same letter on the bag
-                    bag.shuffle(); // shuffling the bag after inserting a new letter
-
-                    // inserting a new letter on hand (while removing it from the bag)
-                    players.at(j).getHand().insert(bag.remove());
-
-                    cout << "Letter " << letter << " removed from your hand ! \n";
+                    bool canRemove = 0;
+                    while (!canRemove) {
+                        cout << LIGHTCYAN << "Letter to remove ? " << NO_COLOR;
+                        cin >> letter;
+                        if (cin.fail()) {
+                            cin.clear();
+                            cout << RED << "The input failed. \n" << NO_COLOR;
+                        } else if (players.at(j).getHand().isOnHand(letter)) { // if that letter is on the hand
+                            //proceeding to remove the letter from the hand
+                            players.at(j).getHand().remove(letter); // removing letter from hand
+                            bag.insert(letter); // inserting that same letter on the bag
+                            bag.shuffle(); // shuffling the bag after inserting a new letter
+                            // inserting a new letter on hand (while removing it from the bag)
+                            players.at(j).getHand().insert(bag.remove());
+                            cout << LIGHTCYAN << "Letter " << letter << " removed from your hand !" << NO_COLOR << endl;
+                            canRemove = 1;
+                        }
+                        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    }
                 }
-                cout << "Hand : ";
+                cout << LIGHTCYAN << "Hand : " << NO_COLOR;
                 players.at(j).getHand().show();
                 cout << endl;
+                board.show();
             }
             while (ema < letPerRound) { // for each player to play either 1 or 2 letters per round
                 if (ema > 0) {
-                    cout << "Hand : ";
+                    cout << LIGHTCYAN << "Hand : " << NO_COLOR;
                     players.at(j).getHand().show();
                     cout << endl;
                 }
                 string positions;
                 char letter;
-                cout << "Position (Lc / PASS / QUIT) ? ";
-                cin >> positions;
-                if (positions == "PASS") {
-                    ema = 2;
-                } else if (positions == "QUIT") {
-                    // write condition
-                } else {
-                    cout << "Letter ? "; // necessário por isto aqui?
-                    cin >> letter;
-                    while (!board.canPlayAt(positions.at(0), positions.at(1), letter) ||
-                           !players.at(j).getHand().isOnHand(letter)) {
-                        cout << RED << "Letter can't be placed there ! \n" << NO_COLOR;
-                        cout << "Position (Lc / PASS / QUIT) ? ";
-                        cin >> positions;
-                        if (positions == "PASS" || positions == "QUIT") break;
-                        cout << "Letter ? ";
-                        cin >> letter;
-                    }
-
-                    if (positions == "PASS") {
+                bool rightPos = 0;
+                while (!rightPos) {
+                    cout << LIGHTCYAN << "Position (Lc / PASS / QUIT) ? " << NO_COLOR;
+                    cin >> positions;
+                    if (cin.fail()) {
+                        cin.clear();
+                        cout << RED << "The input failed.\n" << NO_COLOR;
+                    } else if (positions == "PASS") {
+                        rightPos = 1;
                         ema = 2;
                     } else if (positions == "QUIT") {
-                        // write condition
-                    } else {
-                        // inserting letter on the board
-                        board.insert(positions.at(0), positions.at(1), letter, j + 1);
-                        board.show();
-                        // removing letter from the hand when it has been successfully played
-                        players.at(j).getHand().remove(letter);
-
-                        // updating the hand (if there are still letters on the bag)
-                        if (bag.size() > 0) {
-                            players.at(j).getHand().insert(bag.remove());
+                        rightPos = 1;
+                        //Insert the letters in the players' hand into the bag
+                        for (char letter_hand: players.at(j).getHand().getLetters()) {
+                            bag.insert(letter_hand);
                         }
-                        ema++;
+                        // change the players name to "", Player Id to -1 and empties the hand
+                        players.at(j).quitPlayer();
+                        break;
+                    } else if (positions.at(0) < board.getlines() + 'A' && positions.at(0) >= 'A' &&
+                               positions.at(1) < board.getcolumns() + 'a' &&
+                               positions.at(1) >= 'a') { // position within the range
+                        rightPos = 1;
+                        bool rightLet = 0;
+                        while (!rightLet) {
+                            cout << LIGHTCYAN << "Letter ? " << NO_COLOR; // necessário por isto aqui?
+                            cin >> letter;
+                            if (cin.fail()) {
+                                cin.clear();
+                                cout << RED << "The input failed.\n" << NO_COLOR;
+                            } else if (!board.canPlayAt(positions.at(0), positions.at(1), letter) ||
+                                !players.at(j).getHand().isOnHand(letter)) { // if letter cannot be inserted
+                                cout << RED << "Letter can't be placed there ! \n" << NO_COLOR;
+                                break;
+                            } else { // letter can be inserted
+                                // inserting the letter on the board
+                                board.insert(positions.at(0), positions.at(1), letter, j + 1);
+                                board.show();
+                                // removing letter from the hand when it has been successfully played
+                                players.at(j).getHand().remove(letter);
+
+                                // updating the hand (if there are still letters on the bag)
+                                if (bag.size() > 0) {
+                                    players.at(j).getHand().insert(bag.remove());
+                                }
+                                ema++;
+                            }
+                            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                        }
+                    } else { // out of range
+                        cout << RED << "Invalid position !\n" << NO_COLOR;
                     }
+                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 }
             }
         }
@@ -749,14 +816,15 @@ int main() { // por uma cor bonita nas mensagens
     // at the end of the game, sorting the vector of players' points
     bubbleSortPoints(players);
 
-    cout << "\nThe game has ended ! Let's find out the podium ! \n\n";
+    cout << LIGHTCYAN << "\nThe game has ended ! Let's find out the podium ! \n\n" << NO_COLOR;
 
     // podium for the players
     if (players.size() == 2) {
         if (players.at(0).getPoints() > players.at(1).getPoints()) {
             cout << LIGHTMAGENTA << "1st place: " << players.at(0).getName() << " (" << players.at(0).getPoints()
                  << " points)" << " ! \n";
-            cout << "2nd place: " << players.at(1).getName() << " (" << players.at(1).getPoints() << " points)"
+            cout << LIGHTMAGENTA << "2nd place: " << players.at(1).getName() << " (" << players.at(1).getPoints()
+                 << " points)"
                  << " ! \n" << NO_COLOR;
         }
     } else {
@@ -770,6 +838,5 @@ int main() { // por uma cor bonita nas mensagens
              << players.at(2).getPoints() << " points)"
              << " ! \n";
     }
-
     return 0;
 }
