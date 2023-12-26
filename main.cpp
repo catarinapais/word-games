@@ -59,9 +59,6 @@ using namespace std;
 //--------------------------------------------------------------------------------
 
 //--------------------------------------------------------------------------------
-void toupperStr(string &s) {
-    for (auto &c: s) c = toupper(c);
-}
 
 //--------------------------------------------------------------------------------
 typedef vector<string> WordsOnInitialBoard; //vetor que guarda todas as palavras do board inicial
@@ -86,12 +83,17 @@ typedef struct {
     //vector<Letters> word;
 } WordOnBoard;
 
+//================================================================================
 class Board //board inicial do text file previamente criado
 {
 public:
     int getlines() const;
 
     int getcolumns() const;
+
+    size_t getNumWords() const;
+
+    vector<WordOnBoard> getWords() const;
 
     bool canPlayAt(char line, char column, char letter) const;
 
@@ -197,55 +199,51 @@ void Board::show() const {
 bool Board::canPlayAt(char line, char column, char letter) const {
     int lin = (int) line - 'A';
     int col = (int) column - 'a';
-    bool plays = 1;
+    bool plays = 0;
+    int countPlays;
     for (int a = 0; a < wordsOnBoard.size(); a++) { // checking every word on the board
         if (wordsOnBoard.at(a).pos.dir == 'V') { // if the word is set vertically (lines change)
-
             for (int b = 0; b < wordsOnBoard.at(a).word.size(); b++) { // check if letters correspond
                 if (wordsOnBoard.at(a).word.at(b) == letter && col == wordsOnBoard.at(a).pos.col - 'a' &&
                     lin ==
                     wordsOnBoard.at(a).pos.lin + b - 'A') { // has found the letter to insert and in which word it is
-
                     // condition for checking if past letters have been put on board
+                    countPlays = 0;
                     for (int c = b - 1; c >= 0; c--) { // check letters before the one we want to insert
                         if (gameBoard.at((int) wordsOnBoard.at(a).pos.lin + c - 'A').at(
-                                (int) wordsOnBoard.at(a).pos.col - 'a').playerId == 0) {
-                            // letter before hasn't been played
-                            plays = 0;
+                                (int) wordsOnBoard.at(a).pos.col - 'a').playerId > 0) {
+                            // letter before has been played
+                            countPlays++; // letter can't be played in the associated vertical word
                         }
                     }
+                    if (countPlays == b) plays = 1;
                 }
-
-            }
-            if (!plays) {
-                break;
             }
         } else if (wordsOnBoard.at(a).pos.dir == 'H') { // if the word is set horizontally (columns change)
-
             for (int b = 0; b < wordsOnBoard.at(a).word.size(); b++) { // check if letters correspond
 
                 if (wordsOnBoard.at(a).word.at(b) == letter && col == wordsOnBoard.at(a).pos.col + b - 'a' &&
                     lin == wordsOnBoard.at(a).pos.lin - 'A') { // has found the letter to insert and in which word it is
+
                     // condition for checking if past letters have been put on board
+                    countPlays = 0;
                     for (int c = b - 1; c >= 0; c--) { // check letters before the one we want to insert
                         if (gameBoard.at((int) wordsOnBoard.at(a).pos.lin - 'A').at(
-                                (int) wordsOnBoard.at(a).pos.col + c - 'a').playerId == 0) {
+                                (int) wordsOnBoard.at(a).pos.col + c - 'a').playerId > 0) {
                             // letter before hasn't been played
-                            plays = 0;
+                            countPlays++;
                         }
                     }
+                    if (countPlays == b) plays = 1;
                 }
 
-            }
-            if (!plays) {
-                break;
             }
         }
     }
 
-    if (gameBoard.at(lin).at(col).letter != letter) { // the letter is different from the posi
+    if (gameBoard.at(lin).at(col).letter != letter) { // the letter is different from the position on the board
         plays = 0;
-    } else if (gameBoard.at(lin).at(col).playerId > 0) { // a player has played in that position
+    } else if (gameBoard.at(lin).at(col).playerId > 0) { // a player has been played in that position
         plays = 0;
     }
     return plays;
@@ -271,18 +269,27 @@ int Board::getcolumns() const {
     return numCols_;
 }
 
+size_t Board::getNumWords() const {
+    return wordsOnBoard.size();
+}
+
 vector<vector<Letters>> Board::getLetters() {
     return gameBoard;
 }
+
+vector<WordOnBoard> Board::getWords() const {
+    return wordsOnBoard;
+}
+
 
 int Board::whoFinished(WordOnBoard word) { // returns the id of who finished that specific word
     int lin = word.pos.lin - 'A';
     int col = word.pos.col - 'a';
     int id;
     if (word.pos.dir == 'V') { // vertical word: lines change
-        id = gameBoard.at(lin + word.word.size()).at(col).playerId;
+        id = gameBoard.at(lin + word.word.size() - 1).at(col).playerId;
     } else { // horizontal word: columns change
-        id = gameBoard.at(lin).at(col + word.word.size()).playerId;
+        id = gameBoard.at(lin).at(col + word.word.size() - 1).playerId;
     }
     return id;
 }
@@ -318,6 +325,8 @@ public:
 
     void shuffle();
 
+    int size();
+
 private:
     Board gameBoard_;
     int numLets_;
@@ -340,6 +349,7 @@ Bag::Bag(Board &gameBoard) { // le todo o board e guarda as letras que nao são 
         }
     }
     this->numLets_ = lets.size();
+    shuffle();
 }
 
 vector<char> Bag::get() {
@@ -358,11 +368,12 @@ void Bag::insert(const char &letter) {
 }
 
 char Bag::remove() {
+    // make a copy of the removed element (the first occurrence, in case there's more than one)
+    char removedElements{lets.front()};
+
     // erase the first element from the vector
     lets.erase(lets.begin());
 
-    // make a copy of the removed element (the first occurrence, in case there's more than one)
-    char removedElements{lets.front()};
     // Return the vector containing the removed element
     return removedElements;
 }
@@ -373,10 +384,15 @@ void Bag::exchange(char bylet) { //troca as letras do Bag
 }
 
 void Bag::shuffle() { // verificar se faz algo de jeito
-    std::random_device rd;
-    std::mt19937 g(rd());
-    ::shuffle(lets.begin(), lets.end(), g); // bag is shuffled
+    std::random_device rd; // random number generator (non-deterministic random numbers)
+    std::mt19937 g(rd()); // mersenne twister engine
+    std::shuffle(lets.begin(), lets.end(), g); // bag is shuffled
 }
+
+int Bag::size() {
+    return lets.size();
+}
+
 
 class Hand // letters that each player has on the hand
 {
@@ -394,6 +410,12 @@ public:
     void exchange(char returnlet, char bylet);
 
     bool isEmpty();
+
+    bool isOnHand(char letter);
+
+    void insert(char letter);
+
+    int size();
 
 private:
     int numLets_;
@@ -418,11 +440,11 @@ void Hand::remove(char letter) { // when a letter is inserted on the board, it h
         cout << "That letter doesn't exist in the hand";
 };
 
-void Hand::show() const { // VERIFICAR SE FUNCIONA
+void Hand::show() const {
     auto it = hand_.begin(); // iterator that points to the 1st position of the multiset
-    for (int i = 0; i < numLets_; i++) {
-        advance(it, i);
-        cout << *it << " ";
+    for (int i = 0; i < hand_.size(); i++) {
+        cout << NO_COLOR << *it << " ";
+        it++;
     }
 }
 
@@ -438,8 +460,26 @@ bool Hand::isEmpty() {
         return (0); // vector of letters on hand is yet not empty
 }
 
+bool Hand::isOnHand(char letter) { // ver se cria conflito com a funçao Hand__remove();
+    auto it = hand_.find(letter);
+    if (it != hand_.end()) { // letter was found in the hand_ multiset
+        return 1;
+    } else { // letter wasn't found in the hand_ multiset
+        cout << RED << "That letter is not on your hand ! \n" << NO_COLOR;
+        return 0;
+    }
+}
+
+void Hand::insert(char letter) {
+    hand_.insert(letter);
+}
+
 multiset<char> Hand::getLetters() const { // é necessário?
     return hand_;
+}
+
+int Hand::size() {
+    return hand_.size();
 }
 
 class Player //cada um dos jogadores
@@ -459,7 +499,7 @@ public:
 
     int getPoints() const;
 
-    Hand getHand() const;
+    Hand &getHand();
 
     void addPoints(int points);
 
@@ -498,7 +538,7 @@ int Player::getPoints() const {
     return points_;
 }
 
-Hand Player::getHand() const {
+Hand &Player::getHand() {
     return hand_;
 }
 
@@ -506,24 +546,40 @@ void Player::addPoints(int points) {
     this->points_ += points;
 }
 
-int main() {
+void bubbleSortPoints(vector<Player> &v) {
+    size_t size = v.size();
+    int i = (int) size - 1;
+    while (i >= 0) {
+        for (int j = 0; j < i; j++) {
+            if (v.at(j).getPoints() < v.at(j + 1).getPoints()) {
+                Player spare = v.at(j);
+                v.at(j) = v.at(j + 1);
+                v.at(j + 1) = spare;
+            }
+        }
+        i--;
+    }
+}
+
+int main() { // por uma cor bonita nas mensagens
     int numPlayers, numLetters, p = 1, i = 0;
     string filename, name;
     vector<string> names;
 
+    cout << LIGHTMAGENTA << "WORDS GAME\n\n" << NO_COLOR;
+
     cout << "How many players ? ";
     cin >> numPlayers;
-    // if clause para verificar numero de players entre 2 e 4
+
     bool validNumberP = 0;
     while (!validNumberP) {
         if (numPlayers >= 2 && numPlayers <= 4) {
             validNumberP = 1;
         } else {
-            cout << "Invalid number of players. Please enter a number between 2 and 4." << endl;
-            cout << "How many players? ";
+            cout << RED << "Invalid number of players. Please enter a number between 2 and 4." << NO_COLOR << endl;
+            cout << "How many players ? ";
             cin >> numPlayers;
         }
-
     }
     while (p <= numPlayers) {
         cout << "Name of Player " << p << " ? ";
@@ -532,7 +588,7 @@ int main() {
         p++;
     }
 
-    cout << "Board filename ? ";
+    cout << "\nBoard filename ? ";
     cin >> filename;
     // if clause
 
@@ -548,11 +604,10 @@ int main() {
         if (numLetters < bag.get().size() / numPlayers) {
             validLetters = 1;
         } else {
-            cout << "There are not enough letters to be distributed by all players ! " << endl;
+            cout << RED << "There are not enough letters to be distributed by all players ! \n" << NO_COLOR;
             cout << "How many letters for each player ? ";
             cin >> numLetters;
         }
-
     }
 
     for (int j = 0; j < numPlayers; j++) {
@@ -561,10 +616,11 @@ int main() {
         for (int i = 0; i < numLetters; i++) {
             char remlet;
             remlet = bag.remove();
-            players.at(j).getHand().getLetters().insert(remlet);
+            players.at(j).getHand().insert(remlet); // nao esta a funcionar
         }
         cout << "Player " << j + 1 << ": ";
-        players.at(j).getHand().show(); // DEVE ESTAR MAL!!
+        players.at(j).getHand().show();
+        cout << endl;
     }
     int letPerRound;
     bool validLetPerRound = 0;
@@ -572,42 +628,148 @@ int main() {
     cin >> letPerRound;
     while (!validLetPerRound) {
         if (letPerRound < 1 || letPerRound > 2) {
-            validLetPerRound = 1;
-        } else {
-            cout << "You can only play 1 or 2 ! " << endl;
+            cout << RED << "You can only play 1 or 2 ! \n" << NO_COLOR;
             cout << "How many letters per round ? ";
             cin >> letPerRound;
+        } else {
+            validLetPerRound = 1;
         }
     }
     int ema = 0;
     while (board.stillOnPlay()) { // when there are still letters to be played
-        for (int j = 0; j < numPlayers; j++) {
+        for (int j = 0; j < numPlayers; j++) { // indexing players
+            cout << endl << players.at(j).getName() << ", it's your turn ! \n";
+            cout << "Hand : ";
+            players.at(j).getHand().show();
+            cout << endl;
             ema = 0;
-            while (ema<letPerRound) {
 
-                // codigo para insertion/deletion of letters
+            // cycle that checks if any letter on hand can be played or not. if not, letters can be exchanged
+            bool canPlay = 0; // checking if any of the letters on hand can be played
+            for (char it: players.at(j).getHand().getLetters()) {
+                // checking all letters on hand
+                for (int m = 0; m < board.getlines(); m++) { // checking all lines
+                    for (int t = 0; t < board.getcolumns(); t++) { // checking all columns
+                        if (board.canPlayAt(char(m + 65), char(t + 97),
+                                            it)) { // if a letter can be placed in that position
+                            canPlay = 1;
+                            break;
+                        }
+                    }
+                }
+            }
+            // if canPlay = 1, there's at least one letter that can be played, so the player won't be able to exchange any letter
+            if (!canPlay && bag.size() > 0) { // exchange of letters (when there are still letters on the bag!)
+                int excLetters;
+                cout << "You can't play any letters !\nWould you like to exchange 1 or 2 letters ? ";
+                cin >> excLetters;
+                bool validExcLet = 0;
+                while (!validExcLet) {
+                    if (excLetters < 1 || excLetters > 2) {
+                        cout << "You can only exchange 1 or 2 letters ! " << endl;
+                        cout << "How many letters to exchange ? ";
+                        cin >> excLetters;
+                    } else {
+                        validExcLet = 1;
+                    }
+                } // will only leave this loop when the number of letters is within the limits
+                for (int exc = 0; exc < excLetters; exc++) {
+                    // removing a letter from hand chosen by the player
+                    cout << "Letter to remove ? ";
+                    char letter;
+                    cin >> letter;
+
+                    players.at(j).getHand().remove(letter); // removing letter from hand
+                    bag.insert(letter); // inserting that same letter on the bag
+                    bag.shuffle(); // shuffling the bag after inserting a new letter
+
+                    // inserting a new letter on hand (while removing it from the bag)
+                    players.at(j).getHand().insert(bag.remove());
+
+                    cout << "Letter " << letter << " removed from your hand ! \n";
+                }
+                cout << "Hand : ";
+                players.at(j).getHand().show();
+                cout << endl;
+            }
+            while (ema < letPerRound) { // for each player to play either 1 or 2 letters per round
+                if (ema > 0) {
+                    cout << "Hand : ";
+                    players.at(j).getHand().show();
+                    cout << endl;
+                }
                 string positions;
                 char letter;
-                bool canPlay = 1;
-                cout << "Position (Lc) ? ";
+                cout << "Position (Lc / PASS / QUIT) ? ";
                 cin >> positions;
-                cout << "Letter ? ";
-                cin >> letter;
-                while(!board.insert(positions.at(0),positions.at(1),letter,j+1)) {
-                    cout << "Position (Lc) ? ";
-                    cin >> positions;
-                    cout << "Letter ? ";
+                if (positions == "PASS") {
+                    ema = 2;
+                } else if (positions == "QUIT") {
+                    // write condition
+                } else {
+                    cout << "Letter ? "; // necessário por isto aqui?
                     cin >> letter;
+                    while (!board.canPlayAt(positions.at(0), positions.at(1), letter) ||
+                           !players.at(j).getHand().isOnHand(letter)) {
+                        cout << RED << "Letter can't be placed there ! \n" << NO_COLOR;
+                        cout << "Position (Lc / PASS / QUIT) ? ";
+                        cin >> positions;
+                        if (positions == "PASS" || positions == "QUIT") break;
+                        cout << "Letter ? ";
+                        cin >> letter;
+                    }
+
+                    if (positions == "PASS") {
+                        ema = 2;
+                    } else if (positions == "QUIT") {
+                        // write condition
+                    } else {
+                        // inserting letter on the board
+                        board.insert(positions.at(0), positions.at(1), letter, j + 1);
+                        board.show();
+                        // removing letter from the hand when it has been successfully played
+                        players.at(j).getHand().remove(letter);
+
+                        // updating the hand (if there are still letters on the bag)
+                        if (bag.size() > 0) {
+                            players.at(j).getHand().insert(bag.remove());
+                        }
+                        ema++;
+                    }
                 }
-
-                ema++;
             }
-            //update
         }
-
     }
 
+    // checking who won the game
+    for (int n = 0; n < board.getNumWords(); n++) {
+        players.at(board.whoFinished(board.getWords().at(n)) - 1).addPoints(1);
+    }
 
+    // at the end of the game, sorting the vector of players' points
+    bubbleSortPoints(players);
+
+    cout << "\nThe game has ended ! Let's find out the podium ! \n\n";
+
+    // podium for the players
+    if (players.size() == 2) {
+        if (players.at(0).getPoints() > players.at(1).getPoints()) {
+            cout << LIGHTMAGENTA << "1st place: " << players.at(0).getName() << " (" << players.at(0).getPoints()
+                 << " points)" << " ! \n";
+            cout << "2nd place: " << players.at(1).getName() << " (" << players.at(1).getPoints() << " points)"
+                 << " ! \n" << NO_COLOR;
+        }
+    } else {
+        cout << LIGHTMAGENTA << "1st place: " << NO_COLOR << players.at(0).getName() << " ("
+             << players.at(0).getPoints()
+             << " points)" << " ! \n";
+        cout << LIGHTMAGENTA << "2nd place: " << NO_COLOR << players.at(1).getName() << " ("
+             << players.at(1).getPoints() << " points)"
+             << " ! \n";
+        cout << LIGHTMAGENTA << "3rd place: " << NO_COLOR << players.at(2).getName() << " ("
+             << players.at(2).getPoints() << " points)"
+             << " ! \n";
+    }
 
     return 0;
 }
