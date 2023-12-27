@@ -438,10 +438,8 @@ void Hand::remove(char letter) { // when a letter is inserted on the board, it h
 }
 
 void Hand::show() const {
-    auto it = hand_.begin(); // iterator that points to the 1st position of the multiset
-    for (int i = 0; i < hand_.size(); i++) {
-        cout << NO_COLOR << *it << " ";
-        it++;
+    for (const auto& item : hand_) {
+        cout << NO_COLOR << item << " ";
     }
 }
 
