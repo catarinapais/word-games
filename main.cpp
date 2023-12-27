@@ -101,9 +101,12 @@ public:
 
     bool insert(char line, char column, char letter, int nplayer);
 
-    Board(); //default constructor
+    // constructors:
+    Board();
+
     Board(int numLins, int numCols);  // constructor1
     Board(const string &filename);    // constructor2 - reads a file with the board
+
     void show() const;
 
     int whoFinished(WordOnBoard word);
@@ -116,7 +119,7 @@ private:
     int numCols_;
     vector<WordOnBoard> wordsOnBoard;
     //int numWords;
-    string filename;
+    string filename_;
 };
 
 Board::Board() : numLins_(7), numCols_(7), gameBoard(
@@ -126,10 +129,11 @@ Board::Board(int numLins, int numCols) : numLins_(numLins), numCols_(numCols), g
         vector<vector<Letters>>(numLins, vector<Letters>(numCols, {'.', 0}))) {}
 
 Board::Board(const string &filename) { // constructor2 definition
-    ifstream f(filename);
+    this->filename_ = filename;
+    ifstream f(filename_);
     if (!(f.is_open())) {
         cerr << "File not found!\n";
-        exit(1);
+        return;
     }
     string dummy, boardSize, lines, pos, word;
     getline(f, boardSize);
@@ -574,7 +578,7 @@ int main() {
 
     bool validNumberP = 0;
     while (!validNumberP) {
-        cout << LIGHTCYAN << "How many players ? " << NO_COLOR;
+        cout << LIGHTCYAN << "How many players (2-4) ? " << NO_COLOR;
         cin >> numPlayers;
         if (cin.fail()) {
             cin.clear();
@@ -595,26 +599,33 @@ int main() {
         p++;
     }
 
-    // FALTA VERIFICAR AQUI INPUTS INVALIDOS
     cout << LIGHTCYAN << "\nBoard filename ? " << NO_COLOR;
     cin >> filename;
+    Board board(filename);
 
-    bool validInput = 0;
+    bool validInput = false;
     while (!validInput) {
         if (cin.fail()) {
-            cout << LIGHTCYAN << "\nInvalid input. Please enter a valid filename: " << NO_COLOR;
             cin.clear();  // clear the error state
-        } else {
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');  // clean input buffer
+            cout << RED << "Invalid filename. Please try again.\n" << NO_COLOR;
+        } else if (board.getNumWords() > 0) {
             validInput = true;
+            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');  // clean input buffer
+        } else {
+            cout << RED << "Invalid filename. Please try again.\n" << NO_COLOR;
         }
-        cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');  // ignore invalid input
+
+        if (!validInput) {
+            cout << LIGHTCYAN << "\nBoard filename ? " << NO_COLOR;
+            cin >> filename;
+            board = Board(filename);  // Update the existing board object
+        }
     }
 
-    Board board(filename);
     board.show();
     Bag bag(board);
     vector<Player> players;
-
 
     bool validLetters = 0;
     while (!validLetters) {
@@ -645,20 +656,24 @@ int main() {
     }
     int letPerRound;
     bool validLetPerRound = 0;
+    cout << LIGHTCYAN << "How many letters can each player play each round (1-2) ? " << NO_COLOR;
+    cin >> letPerRound;
     while (!validLetPerRound) {
-        cout << LIGHTCYAN << "Do you want to play 1 or 2 letters per round?" << NO_COLOR;
-        cin >> letPerRound;
         if (cin.fail()) {
             cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
             cout << RED << "The input failed.\n" << NO_COLOR;
+            cout << LIGHTCYAN << "How many letters per round ? " << NO_COLOR;
+            cin >> letPerRound;
         } else if (letPerRound < 1 || letPerRound > 2) {
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
             cout << RED << "You can only play 1 or 2 ! \n" << NO_COLOR;
             cout << LIGHTCYAN << "How many letters per round ? " << NO_COLOR;
             cin >> letPerRound;
         } else {
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
             validLetPerRound = 1;
         }
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
     }
 
     int ema = 0;
@@ -675,7 +690,7 @@ int main() {
                 players.at(j).getHand().show();
                 cout << endl;
             } else {
-                cout << "Player has no more letters in the hand!";
+                cout << "You have no more letters in the hand!";
             }
 
             ema = 0;
@@ -695,25 +710,46 @@ int main() {
                 }
             }
 
+
             // if canPlay = 1, there's at least one letter that can be played, so the player won't be able to exchange any letter
             if (!canPlay && bag.size() > 0) { // exchange of letters (when there are still letters on the bag!)
                 int excLetters;
-                cout << RED << "You can't play any letters !\n" << NO_COLOR;
-                bool validExcLet = 0;
-                while (!validExcLet) {
-                    cout << LIGHTCYAN << "Would you like to exchange 1 or 2 letters ? " << NO_COLOR;
-                    cin >> excLetters;
-                    if (cin.fail()) {
-                        cin.clear();
-                        cout << RED << "The input failed.\n" << NO_COLOR;
-                    } else if (excLetters < 1 || excLetters > 2) {
-                        cout << RED << "You can only exchange 1 or 2 letters ! " << NO_COLOR << endl;
-                    } else {
-                        validExcLet = 1;
-                    }
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
-                } // will only leave this loop when the number of letters is within the limits or a valid input
-
+                if (players.at(j).getHand().size() == 1) { // only one letter on hand
+                    cout << RED << "You can't play that letter !" << NO_COLOR;
+                    excLetters = 0;
+                    char willExchange;
+                    bool validExcLet = 0;
+                    while (!validExcLet) {
+                        cout << LIGHTCYAN << "\nWould you like to exchange your letter ? (Y/N) " << NO_COLOR;
+                        cin >> willExchange;
+                        if (cin.fail()) {
+                            cin.clear();
+                            cout << RED << "The input failed.\n" << NO_COLOR;
+                        } else if (willExchange != 'Y' && willExchange != 'N') { // wrong input
+                            cout << RED << "Please only write Y or N ! " << NO_COLOR << endl;
+                        } else {
+                            validExcLet = 1;
+                            if (willExchange == 'Y') excLetters = 1;
+                        }
+                        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    } // will only leave this loop when the input is either 'Y' or 'N'
+                } else {
+                    cout << RED << "You can't play any letters !\n" << NO_COLOR;
+                    bool validExcLet = 0;
+                    while (!validExcLet) {
+                        cout << LIGHTCYAN << "Would you like to exchange 1 or 2 letters ? " << NO_COLOR;
+                        cin >> excLetters;
+                        if (cin.fail()) {
+                            cin.clear();
+                            cout << RED << "The input failed.\n" << NO_COLOR;
+                        } else if (excLetters < 1 || excLetters > 2) {
+                            cout << RED << "You can only exchange 1 or 2 letters ! " << NO_COLOR << endl;
+                        } else {
+                            validExcLet = 1;
+                        }
+                        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                    } // will only leave this loop when the number of letters is within the limits or a valid input
+                }
                 for (int exc = 0; exc < excLetters; exc++) {
                     // removing a letter from hand chosen by the player
                     char letter;
@@ -742,6 +778,7 @@ int main() {
                 cout << endl;
                 board.show();
             }
+
             while (ema < letPerRound) { // for each player to play either 1 or 2 letters per round
                 if (ema > 0) {
                     cout << LIGHTCYAN << "Hand : " << NO_COLOR;
@@ -760,6 +797,7 @@ int main() {
                     } else if (positions == "PASS") {
                         rightPos = 1;
                         ema = 2;
+                        continue;
                     } else if (positions == "QUIT") {
                         rightPos = 1;
                         //Insert the letters in the players' hand into the bag
@@ -768,6 +806,7 @@ int main() {
                         }
                         // change the players name to "", Player Id to -1 and empties the hand
                         players.at(j).quitPlayer();
+                        ema = 2;
                         break;
                     } else if (positions.at(0) < board.getlines() + 'A' && positions.at(0) >= 'A' &&
                                positions.at(1) < board.getcolumns() + 'a' &&
@@ -780,9 +819,11 @@ int main() {
                             if (cin.fail()) {
                                 cin.clear();
                                 cout << RED << "The input failed.\n" << NO_COLOR;
-                            } else if (!board.canPlayAt(positions.at(0), positions.at(1), letter) ||
-                                !players.at(j).getHand().isOnHand(letter)) { // if letter cannot be inserted
+                            } else if (!board.canPlayAt(positions.at(0), positions.at(1),
+                                                        letter)) { // if letter cannot be inserted
                                 cout << RED << "Letter can't be placed there ! \n" << NO_COLOR;
+                                break;
+                            } else if (!players.at(j).getHand().isOnHand(letter)) { // letter is not on the hand
                                 break;
                             } else { // letter can be inserted
                                 // inserting the letter on the board
@@ -795,7 +836,9 @@ int main() {
                                 if (bag.size() > 0) {
                                     players.at(j).getHand().insert(bag.remove());
                                 }
+                                rightLet = 1;
                                 ema++;
+                                break;
                             }
                             cin.ignore(numeric_limits<streamsize>::max(), '\n');
                         }
@@ -813,30 +856,45 @@ int main() {
         players.at(board.whoFinished(board.getWords().at(n)) - 1).addPoints(1);
     }
 
-    // at the end of the game, sorting the vector of players' points
-    bubbleSortPoints(players);
+    vector<Player> playersOnGame;
+    // at the end of the game, sorting the vector of players' points (players who haven't quit)
+    for (int j = 0; j < players.size(); j++) {
+        if (players.at(j).getId() != -1) { // players who haven't quit the game
+            playersOnGame.push_back(players.at(j));
+        }
+    }
+    bubbleSortPoints(playersOnGame);
 
     cout << LIGHTCYAN << "\nThe game has ended ! Let's find out the podium ! \n\n" << NO_COLOR;
 
     // podium for the players
-    if (players.size() == 2) {
+    if (playersOnGame.size() == 1) {
+        cout << LIGHTMAGENTA << "1st place: " << playersOnGame.at(0).getName() << " ("
+             << playersOnGame.at(0).getPoints()
+             << " points)" << " ! \n";
+    }
+    if (playersOnGame.size() == 2) {
         if (players.at(0).getPoints() > players.at(1).getPoints()) {
-            cout << LIGHTMAGENTA << "1st place: " << players.at(0).getName() << " (" << players.at(0).getPoints()
+            cout << LIGHTMAGENTA << "1st place: " << playersOnGame.at(0).getName() << " ("
+                 << playersOnGame.at(0).getPoints()
                  << " points)" << " ! \n";
-            cout << LIGHTMAGENTA << "2nd place: " << players.at(1).getName() << " (" << players.at(1).getPoints()
+            cout << LIGHTMAGENTA << "2nd place: " << playersOnGame.at(1).getName() << " ("
+                 << playersOnGame.at(1).getPoints()
                  << " points)"
                  << " ! \n" << NO_COLOR;
         }
     } else {
-        cout << LIGHTMAGENTA << "1st place: " << NO_COLOR << players.at(0).getName() << " ("
-             << players.at(0).getPoints()
+        cout << LIGHTMAGENTA << "1st place: " << NO_COLOR << playersOnGame.at(0).getName() << " ("
+             << playersOnGame.at(0).getPoints()
              << " points)" << " ! \n";
-        cout << LIGHTMAGENTA << "2nd place: " << NO_COLOR << players.at(1).getName() << " ("
-             << players.at(1).getPoints() << " points)"
+        cout << LIGHTMAGENTA << "2nd place: " << NO_COLOR << playersOnGame.at(1).getName() << " ("
+             << playersOnGame.at(1).getPoints() << " points)"
              << " ! \n";
-        cout << LIGHTMAGENTA << "3rd place: " << NO_COLOR << players.at(2).getName() << " ("
-             << players.at(2).getPoints() << " points)"
+        cout << LIGHTMAGENTA << "3rd place: " << NO_COLOR << playersOnGame.at(2).getName() << " ("
+             << playersOnGame.at(2).getPoints() << " points)"
              << " ! \n";
     }
+    cout << LIGHTMAGENTA << "Until next time ! \n\n" << NO_COLOR;
+
     return 0;
 }
