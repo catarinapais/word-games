@@ -58,69 +58,61 @@ using namespace std;
 
 //--------------------------------------------------------------------------------
 
+//================================================================================
+// TYPE DEFINITION OF STRUCTS
 //--------------------------------------------------------------------------------
-
-//--------------------------------------------------------------------------------
-typedef vector<string> WordsOnInitialBoard; //vetor que guarda todas as palavras do board inicial
-
 typedef struct {
     char lin;
     char col;
     char dir;
 } WordPosition;
 typedef struct {
-    char lin;
-    char col;
-} LetterPosition;
-typedef struct {
     char letter;
     int playerId; //'1','2','3','4' - played by that player / '0' - letter hasn't been played
-    //LetterPosition pos;
 } Letters;
 typedef struct {
     WordPosition pos;
     string word;
-    //vector<Letters> word;
 } WordOnBoard;
+//================================================================================
 
 //================================================================================
-class Board //board inicial do text file previamente criado
+// CLASS DECLARATION - BOARD
+
+class Board // board regarding the previously created text file
 {
 public:
-    int getlines() const;
-
-    int getcolumns() const;
-
-    size_t getNumWords() const;
-
-    vector<WordOnBoard> getWords() const;
-
-    bool canPlayAt(char line, char column, char letter) const;
-
-    bool stillOnPlay();
-
-    bool insert(char line, char column, char letter, int nplayer);
-
     // constructors:
     Board();
-
     Board(int numLins, int numCols);  // constructor1
     Board(const string &filename);    // constructor2 - reads a file with the board
 
-    void show() const;
-
-    int whoFinished(WordOnBoard word);
-
+    // accessors
+    int getlines() const;
+    int getcolumns() const;
+    size_t getNumWords() const;
+    vector<WordOnBoard> getWords() const;
     vector<vector<Letters>> getLetters();
+
+    // bool functions (for insertion of letters)
+    bool canPlayAt(char line, char column, char letter) const;
+    bool stillOnPlay();
+    bool insert(char line, char column, char letter, int nplayer);
+
+    void show() const;
+    int whoFinished(WordOnBoard word); // returns the player Id
+
 
 private:
     vector<vector<Letters>> gameBoard;
     int numLins_;
     int numCols_;
     vector<WordOnBoard> wordsOnBoard;
-    //int numWords;
     string filename_;
 };
+
+//================================================================================
+// CLASS BOARD DEFINITION - METHODS
 
 Board::Board() : numLins_(7), numCols_(7), gameBoard(
         vector<vector<Letters>>(7, vector<Letters>(7, {'.', 0}))) {}
@@ -169,8 +161,8 @@ Board::Board(const string &filename) { // constructor2 definition
     }
 }
 
-// Shows the board ‘b’ on the screen
-// The line and column identifying letters are colored in red
+// shows the board on screen
+// letters in red have been played; letters in black haven't
 void Board::show() const {
     cout << endl;
     cout << NO_COLOR << "  ";
@@ -194,6 +186,7 @@ void Board::show() const {
     cout << endl;
 }
 
+// returns true if the letter specified can be played in that position
 bool Board::canPlayAt(char line, char column, char letter) const {
     int lin = (int) line - 'A';
     int col = (int) column - 'a';
@@ -247,6 +240,7 @@ bool Board::canPlayAt(char line, char column, char letter) const {
     return plays;
 }
 
+// returns true if it has successfully inserted a letter on the board
 bool Board::insert(char line, char column, char letter, int nplayer) {
     int lin = (int) line - 'A';
     int col = (int) column - 'a';
@@ -257,6 +251,8 @@ bool Board::insert(char line, char column, char letter, int nplayer) {
 
     return canPlay; // returns true if it has successfully inserted a letter on the board
 }
+
+// ACCESSORS:
 
 int Board::getlines() const {
     return numLins_;
@@ -278,7 +274,6 @@ vector<WordOnBoard> Board::getWords() const {
     return wordsOnBoard;
 }
 
-
 int Board::whoFinished(WordOnBoard word) { // returns the id of who finished that specific word
     int lin = word.pos.lin - 'A';
     int col = word.pos.col - 'a';
@@ -291,6 +286,7 @@ int Board::whoFinished(WordOnBoard word) { // returns the id of who finished tha
     return id;
 }
 
+// returns true when the game hasn't ended
 bool Board::stillOnPlay() { // check if there is still any letter to be played at the board
     bool a = 0;
     for (int i = 0; i < numLins_; i++) {
@@ -303,25 +299,27 @@ bool Board::stillOnPlay() { // check if there is still any letter to be played a
     return a;
 }
 
-class Bag //todas as letras
+//================================================================================
+// CLASS DECLARATION - BAG
+// this class allows to create a bag where all letters from the board will be stored
+// and will be distributed to all players
+
+class Bag // all letters
 {
 public:
+    // constructors
     Bag();
-
     Bag(Board &gameboard);
 
-    vector<char> get();
+    // accessor
+    vector<char> get(); // access vector of letters
 
+    // other methods
     bool isEmpty();
-
     void insert(const char &letter);
-
     char remove();
-
     void exchange(char bylet);
-
     void shuffle();
-
     int size();
 
 private:
@@ -330,6 +328,11 @@ private:
     vector<char> lets;
 };
 
+
+//================================================================================
+// CLASS BAG DEFINITION - METHODS
+
+// CONSTRUCTORS:
 Bag::Bag() { // default constructor
     this->numLets_ = 0;
     lets = vector<char>();
@@ -349,6 +352,7 @@ Bag::Bag(Board &gameBoard) { // reads the whole board and saves all positions di
     shuffle();
 }
 
+// ACCESSOR:
 vector<char> Bag::get() {
     return lets;
 }
@@ -367,20 +371,18 @@ void Bag::insert(const char &letter) {
 char Bag::remove() {
     // make a copy of the removed element (the first occurrence, in case there's more than one)
     char removedElements{lets.front()};
-
     // erase the first element from the vector
     lets.erase(lets.begin());
-
     // Return the vector containing the removed element
     return removedElements;
 }
 
-void Bag::exchange(char bylet) { //troca as letras do Bag
-    insert(bylet); //insere a letra da hand do jogador
-    remove(); //retirar do bag as letras
+void Bag::exchange(char bylet) {
+    insert(bylet); // inserts the letter that was removed from a hand
+    remove(); // removes letter from bag
 }
 
-void Bag::shuffle() { // verificar se faz algo de jeito
+void Bag::shuffle() { // shuffling the bag at the construction of the bag and when new letters are inserted
     std::random_device rd; // random number generator (non-deterministic random numbers)
     std::mt19937 g(rd()); // mersenne twister engine
     std::shuffle(lets.begin(), lets.end(), g); // bag is shuffled
@@ -390,28 +392,29 @@ int Bag::size() {
     return lets.size();
 }
 
+//================================================================================
+// CLASS DECLARATION - HAND
+// this class will store the letters at one's hand and allow a player to remove and
+// insert new letters
 
 class Hand // letters that each player has on the hand
 {
 public:
-    Hand(); //default constructor
-    Hand(int &numLets); //constructor1 - inicializa a mao do jogador
-    void remove(char letter);
+    // constructors
+    Hand();
+    Hand(int &numLets); //constructor1 - initializes the hand of a player
 
-    void update();
-
-    void show() const;
-
+    // accessor
     multiset<char> getLetters() const;
 
+    // other methods
+    void remove(char letter);
+    void update();
+    void show() const;
     void exchange(char returnlet, char bylet);
-
     bool isEmpty();
-
     bool isOnHand(char letter);
-
     void insert(char letter);
-
     int size();
 
 private:
@@ -419,6 +422,9 @@ private:
     multiset<char> hand_;
 };
 
+//================================================================================
+// CLASS HAND DEFINITION - METHODS
+// CONSTRUCTORS:
 Hand::Hand() {// default constructor
     this->numLets_ = 5; // default number of letters when not specified
 }
@@ -433,12 +439,11 @@ void Hand::remove(char letter) { // when a letter is inserted on the board, it h
     {
         auto it = hand_.find(letter);
         hand_.erase(it);
-        char removedLetter = *it;
     }
 }
 
 void Hand::show() const {
-    for (const auto& item : hand_) {
+    for (const auto &item: hand_) {
         cout << NO_COLOR << item << " ";
     }
 }
@@ -478,33 +483,27 @@ int Hand::size() {
     return hand_.size();
 }
 
-class Player //cada um dos jogadores
+//================================================================================
+// CLASS DECLARATION - PLAYER
+// this class will store the of a player (name, Id, hand, points) and implements
+// methods to access and mutate these
+class Player // for each player
 {
 public:
-    Player();
-
+    // constructors
     Player(const string &name, int &numLets);
 
-    // remover os objetos bag e board daqui; deixar hand
-    Board gameBoard;
-    Bag bag;
-
+    // accessors
     int getId() const;
-
     string getName() const;
-
     int getPoints() const;
-
     Hand &getHand();
 
+    // other methods
     void addPoints(int points);
-
     void insertHand(const string &letters);
-
     string removeHand(const string &letters);
-
     void quitPlayer();
-
 
 private:
     static int playerCount;  //mantém track da contagem dos players, como é static  is shared among all instances of the class, and its value persists across different objects.
@@ -514,8 +513,14 @@ private:
     Hand hand_; // each player has a hand with letters
 };
 
-int Player::playerCount = 0; // static member variables of a class must be defined outside the class.This is because the static member variable exists independently of any specific instance of the class, and its memory must be allocated separately. (basicamente para tds os players a variavel player count vai ser a mm)
+//================================================================================
+// CLASS PLAYER DEFINITION - METHODS
 
+int Player::playerCount = 0; // static member variable of the class
+// static member variable - it exists independently of any specific instance of the class
+// (its memory will be allocated separately, since it regards all instances of Player)
+
+// CONSTRUCTORS:
 Player::Player(const string &name, int &numLets) {
     // will attribute to each player (instance) a name, an id, a hand)
     this->name_ = name;
@@ -525,6 +530,7 @@ Player::Player(const string &name, int &numLets) {
     this->points_ = 0;
 }
 
+// ACCESSORS:
 int Player::getId() const {
     return playerId_;
 }
@@ -545,7 +551,13 @@ void Player::addPoints(int points) {
     this->points_ += points;
 }
 
-void bubbleSortPoints(vector<Player> &v) {
+void Player::quitPlayer() { // when a player quits, its id is changed to -1 just so it can no longer play
+    name_ = "\0";
+    playerId_ = -1;
+    hand_.getLetters().clear();
+}
+
+void bubbleSortPoints(vector<Player> &v) { // sorting players by points
     size_t size = v.size();
     int i = (int) size - 1;
     while (i >= 0) {
@@ -560,11 +572,8 @@ void bubbleSortPoints(vector<Player> &v) {
     }
 }
 
-
-void Player::quitPlayer() {
-    name_ = "\0";
-    playerId_ = -1;
-    hand_.getLetters().clear();
+void toupperStr(string &s) {
+    for (auto &c: s) c = toupper(c);
 }
 
 int main() {
@@ -648,7 +657,7 @@ int main() {
             remlet = bag.remove();
             players.at(j).getHand().insert(remlet);
         }
-        cout << LIGHTCYAN << "Player " << j + 1 << ": " << NO_COLOR;
+        cout << LIGHTCYAN << players.at(j).getName() << "'s Hand : " << NO_COLOR;
         players.at(j).getHand().show();
         cout << endl;
     }
@@ -711,6 +720,9 @@ int main() {
 
             // if canPlay = 1, there's at least one letter that can be played, so the player won't be able to exchange any letter
             if (!canPlay && bag.size() > 0) { // exchange of letters (when there are still letters on the bag!)
+                if (bag.size() == 0) { //there are no letters in the bag
+                    cout << RED << "There are no more letters in the bag!" << NO_COLOR << endl;
+                }
                 int excLetters;
                 if (players.at(j).getHand().size() == 1) { // only one letter on hand
                     cout << RED << "You can't play that letter !" << NO_COLOR;
@@ -720,6 +732,7 @@ int main() {
                     while (!validExcLet) {
                         cout << LIGHTCYAN << "\nWould you like to exchange your letter ? (Y/N) " << NO_COLOR;
                         cin >> willExchange;
+                        willExchange = toupper(willExchange);
                         if (cin.fail()) {
                             cin.clear();
                             cout << RED << "The input failed.\n" << NO_COLOR;
@@ -755,6 +768,7 @@ int main() {
                     while (!canRemove) {
                         cout << LIGHTCYAN << "Letter to remove ? " << NO_COLOR;
                         cin >> letter;
+                        letter = toupper(letter);
                         if (cin.fail()) {
                             cin.clear();
                             cout << RED << "The input failed. \n" << NO_COLOR;
@@ -771,7 +785,7 @@ int main() {
                         cin.ignore(numeric_limits<streamsize>::max(), '\n');
                     }
                 }
-                cout << LIGHTCYAN << "Hand : " << NO_COLOR;
+                cout << LIGHTCYAN << "\nHand : " << NO_COLOR;
                 players.at(j).getHand().show();
                 cout << endl;
                 board.show();
@@ -863,36 +877,36 @@ int main() {
     }
     bubbleSortPoints(playersOnGame);
 
-    cout << LIGHTCYAN << "\nThe game has ended ! Let's find out the podium ! \n\n" << NO_COLOR;
+    cout << LIGHTMAGENTA << "\nThe game has ended ! Let's find out the podium ! \n\n" << NO_COLOR;
 
     // podium for the players
-    if (playersOnGame.size() == 1) {
-        cout << LIGHTMAGENTA << "1st place: " << playersOnGame.at(0).getName() << " ("
-             << playersOnGame.at(0).getPoints()
-             << " points)" << " ! \n";
-    }
-    if (playersOnGame.size() == 2) {
-        if (players.at(0).getPoints() > players.at(1).getPoints()) {
-            cout << LIGHTMAGENTA << "1st place: " << playersOnGame.at(0).getName() << " ("
+    switch (playersOnGame.size()) {
+        case 1:
+            cout << LIGHTMAGENTA << "1st place: " << NO_COLOR << playersOnGame.at(0).getName() << " ("
+                 << playersOnGame.at(0).getPoints() << " points)" << " ! \n";
+            break;
+
+        case 2:
+            if (playersOnGame.at(0).getPoints() >= playersOnGame.at(1).getPoints()) {
+                cout << LIGHTMAGENTA << "1st place: " << NO_COLOR << playersOnGame.at(0).getName() << " ("
+                     << playersOnGame.at(0).getPoints() << " points)" << " ! \n";
+                cout << LIGHTMAGENTA << "2nd place: " << NO_COLOR << playersOnGame.at(1).getName() << " ("
+                     << playersOnGame.at(1).getPoints() << " points)" << " ! \n";
+            }
+            break;
+
+        default:
+            cout << LIGHTMAGENTA << "1st place: " << NO_COLOR << playersOnGame.at(0).getName() << " ("
                  << playersOnGame.at(0).getPoints()
                  << " points)" << " ! \n";
-            cout << LIGHTMAGENTA << "2nd place: " << playersOnGame.at(1).getName() << " ("
-                 << playersOnGame.at(1).getPoints()
-                 << " points)"
-                 << " ! \n" << NO_COLOR;
-        }
-    } else {
-        cout << LIGHTMAGENTA << "1st place: " << NO_COLOR << playersOnGame.at(0).getName() << " ("
-             << playersOnGame.at(0).getPoints()
-             << " points)" << " ! \n";
-        cout << LIGHTMAGENTA << "2nd place: " << NO_COLOR << playersOnGame.at(1).getName() << " ("
-             << playersOnGame.at(1).getPoints() << " points)"
-             << " ! \n";
-        cout << LIGHTMAGENTA << "3rd place: " << NO_COLOR << playersOnGame.at(2).getName() << " ("
-             << playersOnGame.at(2).getPoints() << " points)"
-             << " ! \n";
+            cout << LIGHTMAGENTA << "2nd place: " << NO_COLOR << playersOnGame.at(1).getName() << " ("
+                 << playersOnGame.at(1).getPoints() << " points)"
+                 << " ! \n";
+            cout << LIGHTMAGENTA << "3rd place: " << NO_COLOR << playersOnGame.at(2).getName() << " ("
+                 << playersOnGame.at(2).getPoints() << " points)"
+                 << " ! \n";
+            break;
     }
-    cout << LIGHTMAGENTA << "Until next time ! \n\n" << NO_COLOR;
-
+    cout << LIGHTMAGENTA << "\nUntil next time ! " << NO_COLOR;
     return 0;
 }
